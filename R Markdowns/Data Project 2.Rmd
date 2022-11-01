@@ -1,0 +1,243 @@
+---
+title: "Statistical Programming Data Project II"
+author: "Mohamed Diallo"
+date: "03/30/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr) # For tables and other goodies.
+```
+
+## Preface
+
+This project will take an attempt at exploring the Olympics data set from **tidytuesday**. This data set was put together by Thomas Mock in 2018 with the help of the website (<https://www.sports-reference.com>). It is a collective work accomplished by an *Olympic history research* group of enthusiasts.
+
+We begin importing the necessary libraries to load and manipulate the **Olympics** data-set, then we proceed with cleaning it up using the **tidytuesday** guidelines. The libraries we will be importing are *tidyverse* which will give us access to tools like *ggplot* in order to plot graphs. The library *readxl* will also be used to import the Olympics Excel ^**TM**^ file that we will be manipulating throughout the project. Extra libraries to help with aesthetics will also be initialized as well as the *here* library to assist with file location.
+
+```{r Library Imports}
+library(tidyverse) #Core packages for data wrangling and visualization.
+library(readxl) #In order to read the Olympics data set as an excel table.
+library(ggthemes) #To add more life to our graphs.
+library(viridis)
+library(fivethirtyeight)
+library(hrbrthemes)
+library(here)
+library(extrafont)
+extrafont::font_import()
+file_path <- here("olympics.xlsx")
+olymp <- read_excel(file_path) #
+view(olymp)
+```
+
+## Introduction
+
+Before we explore this data set about the Olympic games (OGs), knowing what it is in the first place and how it originated might give us more perspective. That being said, let's rewind the clock to about 2,900 years back. Archaeological and literary evidence such as a series of bronze tripods suggests that Olympic games were held during these times. The year 776 B.C. marked the first official records of quadrennial Olympics. It is widely believed ***Ancient*** **Olympic Games (AOGs)**, as they are called nowadays, were held as part of a religious ritual in honor of Zeus, the Greek god of gods. Given the athletic nature of Greeks, and the purpose of honor behind the festival, there was no medal distributed for the winners of these games. However, they would return home as Heroes, believed to have been touched by the gods, and would be rewarded with a wreath of leaves. The games themselves were introduced when the *stadion* race (linear distance equal to 600 feet.) was won by a cook named Koroibos. In 394, the final AOG was hosted following the outlawing of pagan celebrations by Roman emperor, Theodosius I.
+
+The year 490 however marked an important event that will be celebrated in the next OGs. This year, the "day-runner" Pheidippidis ran 240 kilometers from Marathon city to Sparta in order to enlist help following a Persian landing. Fast forward 1,406 years later and French educator and historian successfully orchestrates the beginning of the ***New*** **Olympic Games** which later included the standardized 42.195 km Marathon run in honor of Pheidippidis. This distance was measured as the exact distance between Windsor Castle and the finish line inside White City Stadium. A few more interesting events that happened in the history of the OGs are the two World Wars as the OGs were cancelled three times during these two periods. Our research paper will aim to find whether there is any meaningful statistical relationship between the number of medals won in Summer and in Winter OGs.
+
+We could start by first getting a glimpse of the data we will be dealing with.
+
+```{r glimpseOlympics}
+
+glimpse(olymp)
+summary(olymp)
+```
+
+We can see from the information here-above that we have 271,116 observations across 15 different variables. These columns are shown above and range from id to medal. This data-set covers information that dates from when Pierre de Coubertin proposed the introduction of the **New Olympic** games. It is also important to note that all non-numerical character types have character as theirs therefore we may need to turn them into factors later down the line for certain operations. However before we get to that stage, the summary table above tells us more information such as the minimum age at which a person participated in the Olympic games which is 10. The oldest person to have played in the Olympic games between 1896 and 2016 was of age 97. The most number of participant were of age 24 and the mean age for Olympic participants in this time period was 25 and a half years. The same kind of information can also be pulled from the height and weight columns above. We could start by getting a good picture of the change in number of athletes per year for each Olympic Season. We will first group our data frame by year and season. We will then summarize our data so that we only get unique values for the athletes' ids, national Olympic committees (noc), and events. This will ensure that we do not have repetitions of athlete instances in our data as some athletes may participate in different events.
+
+## Data Wrangling
+
+```{r Athletes Grouped by Year}
+yearly_athletes <- olymp %>%
+  group_by(year, season) %>%
+  summarise(
+    athletes = length(unique(id)),
+    nations = length(unique(noc)),
+    events = length(unique(event))
+  )
+view(yearly_athletes)
+```
+
+Next, we plot a faceted dot-plot of the number of athletes per year according to the season.
+
+```{r plotz}
+ath_per_year <- yearly_athletes %>% 
+  ggplot(aes(x = year, y = athletes, stat = "identity", color = season)) +
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE) + 
+  facet_wrap(~season) +
+   theme_wsj() + 
+  theme(axis.text.x = element_text(angle = 90, size = 10),
+                      axis.text.y = element_text(size = 10),
+                      axis.title = element_text(size = 10),
+                      plot.title = element_text(size = 20), 
+                      legend.title = element_text(size = 25), 
+                      legend.text = element_text(size = 10)) +
+  labs(x = "Year", y = "Number of Athletes", title = "Number of Athletes per 
+       Year grouped by Season")
+
+ath_per_year
+```
+
+We can see from the graph and the table above that the number of athletes in Olympic games has been steadily increasing throughout the years. Looking at the two graphs, we can see that winter Olympic games started significantly after the summer ones. The graphs also tell us that the summer games host more participants at past 9000 compared to around 3000 in the winter games. Next we could find the mean number of players throughout in winter games compared to summer games.
+
+```{r}
+summer_aths <- yearly_athletes %>% filter(season == 'Summer')
+summer_aths
+mean_summeraths <- mean(summer_aths$athletes)
+mean_summeraths
+
+
+winter_aths <- yearly_athletes %>% filter(season == 'Winter')
+winter_aths
+mean_winteraths <- mean(winter_aths$athletes)
+mean_winteraths
+```
+
+```{r}
+median_summeraths <- median(summer_aths$athletes)
+
+median_winteraths <- median(winter_aths$athletes)
+
+print(paste("The median number of athletes present in Summer Olympic games is:", median_summeraths))
+
+print(paste("The median number of athletes present in Winter Olympic games is:", median_winteraths))
+```
+
+We can see that the mean number of athletes present throughout the summer games is 5477.897 whilst the mean number of athletes present in the winter games is 1299.682. This in theory means we could hypothesize that the gold medals won in summer games affect the total number of medals won more than those in winter games. We will be verifying this assumption later down the project.
+
+Next, since the mark for honor has been symbolized by medals in recent OGs, let us extract the number of medals won by athletes for each season every year. Seeing as summer games started earlier than winter ones, we will filter out all of the OGs hosted before 1924 so that we obtain the same number of winter and summer games. This will ensure better uniformity of our data.
+
+```{r iris filter}
+arranged_yearly <- olymp %>% 
+  arrange(year, season, sex, medal) %>% 
+  mutate(got_medal= if_else(.$medal == is.na(medal), 0, 1))
+
+view(arranged_yearly)
+
+medal_per_szn <- arranged_yearly %>% 
+  group_by(year, season, sex) %>% 
+  count(got_medal) %>% 
+  filter(year >= 1924 & got_medal != is.na(got_medal)) %>%
+  ungroup() %>% 
+  summarise(year, season, sex, n)
+  
+view(medal_per_szn)
+```
+
+Let us now plot a stacked area graph that shows us the evolution of the number of medals won over the years by both men and women in winter and summer games.
+
+```{r iris_plot, message = FALSE}
+medal_per_szn %>% ggplot(aes(x = year, y = n, fill = sex)) +
+  scale_x_continuous(medal_per_szn$year) +
+  scale_y_continuous(medal_per_szn$n) +
+  scale_fill_viridis(discrete = T) +
+  geom_area(position = 'dodge', alpha = 0.65) + 
+  geom_smooth(method = "loess", se = FALSE, color = "#D11D53", size = 0.3) + 
+  facet_wrap(~season) +
+  theme_ipsum() +
+  theme(axis.text.x = element_text(angle = 90), 
+        plot.title = element_text(size = 9), 
+        legend.title = element_text(size = 10)) +
+  ggtitle("Number of Medals Won per Year grouped by Season") +
+  ylab("Number of Medals") +
+  labs(x = "Year", y = "Number of Medals", 
+       title = "Number of Medals Won per Year grouped by Season")
+
+```
+
+We can see that the number of medals won per year have been steadily increasing both in summer and winter games. This seemingly goes in accordance with the increase with the number of athletes per year for both winter and summer OGs. Summer games yield the higher number of medals but it seems as though these have been in decline in recent years whilst the winter games number of medals has been on a steady increase. Next, we could run an ANOVA test to verify whether the season in which an OG was hosted can explain the number of medals won in the OGs. In other words, we will find out whether there is, statistically speaking, a significant difference in season versus number of medals won.
+
+```{r}
+ref_mps <- medal_per_szn %>% 
+  rename(medal_count = n)
+
+```
+
+```{r}
+
+ref_mps <- ref_mps %>% 
+  select(year, season, medal_count) 
+view(ref_mps)
+ref_mps_aov <- aov(medal_count ~ season, data = ref_mps)
+summary(ref_mps_aov)
+```
+
+Judging from the result of our ANOVA test, our F statistics value is 92, which means that our variation of medals among our sample means versus that of our groups is high. This coupled with a low P-value of 2.43e-15 means that the variation in our mean number of medals among different seasons is much higher larger than the variation of medals within each season. Hence we reject the null hypothesis in favor of the alternate one. This means that the seasons in which OGs are hosted can statistically explain the number of medals are earned for that period. We can verify this with a box-plot of the mean number of medals won for each season period. This is to ensure that the results we got from our ANOVA test is not soiled by outliers.
+
+Finally, since we can safely hypothesize that the season in which an OG was hosted can explain for the number of medals obtained in those games, one more interesting piece of information we could pull from this data-set is the top ten countries with the highest number of medals, in other words, the ones that bring the bag home. We could also plot a bar chart of the number of medals won in winter compared to summer.
+
+```{r table}
+medal_per_noc <- arranged_yearly %>% 
+  filter(got_medal != is.na(got_medal)) %>% 
+  summarise(noc, got_medal) %>% 
+  group_by(noc) %>% 
+  count() %>% 
+  ungroup() %>% 
+  top_n(10)
+
+view(medal_per_noc)
+```
+
+```{r}
+medal_per_seas <- arranged_yearly %>% 
+  filter(got_medal != is.na(got_medal)) %>% 
+  summarise(season, got_medal) %>% 
+  group_by(season) %>% 
+  count() %>% 
+  rename(Total_Medals = n) %>% 
+  ungroup()
+
+
+view(medal_per_seas)
+```
+
+```{r tsing}
+
+medal_per_noc %>% ggplot(aes(x = noc, y = n, fill = noc)) +
+  geom_col() + 
+  theme_wsj() + 
+  scale_colour_economist() +
+  theme(axis.text.x = element_text(face = "bold",
+                                   angle = 90, 
+                                   colour = "red", 
+                                   size = 13),
+                      axis.text.y = element_text(size = 10),
+                      axis.title = element_text(size = 10),
+                      plot.title = element_text(size = 11), 
+                      legend.title = element_text(size = 15), 
+                      legend.text = element_text(size = 10),
+        legend.key.size = unit(0.5, "line")) +
+  labs( color = "Country", x = "Year", y = "Number of Athletes", title = "Number of Medals Won for Top 10 Countries")
+
+medal_per_noc
+```
+
+```{r}
+
+medal_per_seas %>% ggplot(aes(x = season, y = Total_Medals, fill = season)) +
+  geom_col() + 
+  theme_wsj() + 
+  scale_colour_economist() +
+  theme(axis.text.x = element_text(face = "bold",
+                                   angle = 90, 
+                                   colour = "red", 
+                                   size = 13),
+                      axis.text.y = element_text(size = 10),
+                      axis.title = element_text(size = 10),
+                      plot.title = element_text(size = 11), 
+                      legend.title = element_text(size = 15), 
+                      legend.text = element_text(size = 10),
+        legend.key.size = unit(0.5, "line")) +
+  labs( color = "Country", x = "Season", 
+        y = "Number of Medals", 
+        title = "Number of Medals Won In Summer vs Winter")
+
+medal_per_seas
+```
+
+## Conclusion
+
+In summary, we can come to the conclusion that the season in which a game is hosted can be used to statistically explain the number of medals won in those OGs. A better way to prove this would have been to add a boxplot showing the spread of medals per season and the mean number of medals won, this would however require us to include the year as another observational variable whereas we only wanted to focus on the medals by season. The OGs have had a long history for sure but the data present in this data-set tell much more as I am confident that we have barely scratched its surface.

@@ -1,0 +1,192 @@
+---
+title: "Data Project 3"
+author: "Mohamed Diallo"
+date: "4/27/2022"
+output:
+  html_document: 
+    theme: united
+    highlight: tango
+---
+
+```{=html}
+<style>
+body {
+text-align: justify;
+font-family: Times New Roman;
+font-size: 20;
+}
+</style>
+```
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries}
+library(here)
+library(tidyverse)
+library(readxl)
+library(ggthemes)
+path <- here(getwd())
+```
+
+### Introduction
+
+This data project will be analyzing the **Anime** data-set pulled from the MyAnimeList databases. As an anime fanatic, I am quite familiarized with the MyAnimeList (MAL) website and app. I have been keeping records of the anime I watch through this website for years through their app and can state with a certain level of confidence (lol) that I represent a certain percentage of the ratings present in their databases. As of 2008, MAL apparently had 4.4million anime and 775,000 manga entries. These entries were accessed by an approximate figure nearing 120 million visitors a month in 2015.
+
+The aim of this project will be to see the effect that the genre and type of an anime title have on their scores. This will show us to a certain extent whether the fan preferences in terms of genre and or type have an effect on the rating scores of the titles.
+
+In order to explore the data-set, we first need to import the libraries necessary to pull and manipulate the csv file. For this project, we will be using the libraries: ***here, tidyverse, readxl, fivethirtyeight, ggthemes,*** and ***kableExtra***. Next, seeing as we have two different versions of the data-set, we will see which one between the tidy and raw ones are best suited for our analysis. The tidy one differs from the raw one in that each genre from the same anime occupies one row. Seeing as we might need to analyze the genres on their own, we will proceed with the tidy data-set but use out the raw one wherever needed.
+
+## Data Exploration
+
+Let's first start by getting a glimpse of our data:
+
+```{r paths, echo= T}
+anime_raw <- read_csv(here(path, "Anime Dataset/raw_anime.csv"))
+
+summary(anime_raw)
+
+anime_tidy <- read_csv(here(path, "Anime Dataset/tidy_anime.csv"))
+
+summary(anime_tidy)
+```
+
+```{r glimpse, include=FALSE}
+glimpse(anime_tidy)
+```
+
+At a glance, we can see that the tidy anime data-set contains 28 observations of 77,911 variables. 8 variables are numerical with the remaining 20 being categorical. The summary section also tells us that the lowest score was 1 and the highest was 10. The mean score for all titles in the data-set is about 6.8/10. There is a reason why I decided to focus the analysis mainly on the scores and how different other categorical variables affect it is quite simple. Peering through the data-set made me realize just how big the anime and manga community I am in is and just how varied the content we watch is although it all falls under the same *anime* umbrella term. As such, I want to explore if this community's engagement and preferences affect the scores anime receive as Wikipedia claims that MAL had to change their scoring formulas due to users creating accounts just to boost the scores of specific anime. According to the website, the formula used by MAL to calculate scores has now been modified to adjust for this and takes the form shown here-under:
+
+$$
+R = \frac{vS + mC}{v + m}
+$$
+
+where v stands for total number of user votes, S for the average user score, m for the minimum number of votes required to get a calculated score (currently 50), and C for the average score across the entire anime/manga database. Only scores where a user has completed at least 20% of the anime/manga are calculated. I have included this information in case you would like to verify the accuracy of this equation or have improvements to suggest for it.[Wikipedia](https://en.wikipedia.org/wiki/MyAnimeList)
+
+## Data Plotting
+
+Next, let us create a violin-jitter-box-plot in order to see how the scores of anime titles differ by genre:
+
+```{r Tidy Anime}
+anime_tidy <- anime_tidy %>%  
+  select(animeID, name, type, source, genre, studio,
+         episodes, airing, start_date, end_date, duration,
+         rating, score, scored_by, rank, popularity,
+         members, favorites) %>% 
+  filter(scored_by >= 50) %>% 
+  drop_na(genre, score) %>% 
+  arrange(-score)
+view(anime_tidy)
+```
+
+```{r Violin-Jitter-Box-Plot}
+ggplot(anime_tidy, aes(x = genre, y = score, color = genre)) +
+  geom_violin() +
+  geom_jitter(alpha = 0.01) +
+  geom_boxplot() +
+  scale_fill_discrete() +
+  theme_economist_white() +
+  theme(axis.text.x = element_text(angle = 90, size = 8),
+        legend.text = element_text(size = 5),
+        legend.key.size = unit(0.5, "line")) +
+  labs(title = "Violin-Jitter-Box-Plot of Scores vs. Genre", x = "Genre", y = "Score")
+```
+
+We can see from the plot above that there is not much difference between the score distribution between genres therefore it is unlikely that genres have an effect on the overall score of a title given the asymmetry of certain boxes and the numerous outliers which may mess with our ANOVA test. This can be further seen in the bar-plot here-under:
+
+```{r Mean Score}
+mean_score <- anime_tidy %>% 
+  filter(scored_by >= 50) %>%
+  group_by(genre) %>% 
+  summarise_at(vars(score), list(m_score = mean))
+summary(mean_score)
+```
+
+```{r Mean Score Plot}
+ggplot(mean_score, aes(x = genre, y = m_score, fill = genre)) +
+  geom_col() +
+  theme_excel() +
+  theme(axis.text.x = element_text(angle = 90),
+        legend.text = element_text(size = 5),
+        legend.key.size = unit(0.5, "line")) +
+  scale_fill_hue(name = "Genre") +
+  labs(title = "Bar-Plot of Mean Scores vs. Genre", x = "Genre", y = "Mean Score")
+```
+
+The bar-plot here-above shows us that there is not much mean score difference between different genres of anime. We will however still proceed with the test to see what outcome we get. Before we get to the anova test, we will first go through the effect of type on anime scores and then perform the two ANOVA tests concurrently:
+
+```{r Tidy Score}
+score_tidy <- anime_tidy %>%
+  filter(scored_by >= 50) %>% 
+  group_by(animeID, name, genre, score, scored_by, airing, type)
+summary(score_tidy)
+```
+
+Next, we can plot the score distribution of the different types of anime. Since MAL uses a minimum number of 50 votes to rank and score a title, we will be filtering out all the titles that were scored by less than 50 people (this was also done for the previous tibbles):
+
+```{r Score Dist. Plot}
+ggplot(score_tidy, aes(x = score, fill = type)) +
+  geom_histogram() +
+  scale_fill_viridis_d(name = "Type") +
+  theme(axis.text.x = element_text(size = 10),
+        legend.text = element_text(size = 10),
+        legend.key.size = unit(0.5, "line")) +
+  facet_wrap(~type) +
+  theme_excel() +
+  labs(title = "Facetted Distribution Histogram", 
+       subtitle = "Plot of Score Distribution by Anime Type", 
+       x = "Score", 
+       y = "Count")
+```
+
+Now that we have our score distribution histograms, we can see that they skew the slightest bit towards the right indicating a higher number of high scores than low ones in the 0 - 10 scoring scale. Note that the music type is an exception to this observation as it is not skewed. We can see that all types of anime have an approximately normal distribution. Next, we plot the types versus the scores in a box-plot to better see if there is a difference in scores between different types of anime:
+
+```{r Anime Score Box-Plot}
+ggplot(score_tidy, aes(x = type, y = score, fill = type)) +
+  geom_boxplot(outlier.colour = "red") +
+  scale_fill_calc(name = "Anime Type") +
+  theme(axis.text.x = element_text(size = 10),
+        legend.text = element_text(size = 10),
+        legend.key.size = unit(0.5, "line",),
+        plot.background = element_rect(colour = "black")) +
+  theme_excel() +
+  labs(title = "Box-plot of Anime Type vs. Score",
+       x = "Anime Type", 
+       y = "Score")
+```
+
+We can see from this box-plot the scores tend to vary according to the type of anime. Additionally, within each of the group, the scores are symmetric and the variances seem to be similar since the boxes have approximately the same size. The last one of our assumptions has been filled by the fact that the score distributions for these different types follow a normal form.
+
+## ANOVA Tests
+
+The next and final step we will be taking will be to test if the type and genre of a title has any effect on the score it receives.
+
+First, the ANOVA test with **type**:
+
+```{r Type ANOVA}
+type_effct <- score_tidy %>% 
+  group_by(type) %>% 
+  summarise(score, var_score = var(score))
+summary(type_effct)
+
+model <- aov(score ~ type, data = type_effct)
+summary(model)
+```
+
+Then next the one with **genre**:
+
+```{r Genre ANOVA}
+genre_effct <- score_tidy %>% 
+  group_by(genre) %>% 
+  summarise(score, var_score = var(score))
+summary(genre_effct)
+
+model <- aov(score ~ genre, data = genre_effct)
+summary(model)
+```
+
+Surprisingly both our ANOVA tests for came back with a p-value less than 2e-16. This means that both type and genre explain the scores of anime titles. Therefore, we could technically ***reject the null hypotheses*** for genre and type that state that there is no association between genre and score and type and score. This means that the genre and type preferences can help explain why certain anime titles score higher than others.
+
+## Conclusion:
+
+Given the results from our ANOVA tests, we have managed to conclude that genre and type have an effect on the scores of anime titles. That being said, it is good to know that MAL has updated their scoring system and user registration methods to avoid such scoring catastrophes. The most important reason as to why this is essential is because most anime fan have heard of MAL at some point if they do not already have an account there. Therefore, it is reasonable to assume that most anime recommendations and view counts are decided in such websites where the members of this community interact on a day to day basis. Messing with these number could take away the credit certain authors and animators deserve for the amount of work they have put in to get their art to their fans. Considering that it can take up to a 6 months to make a 24 min. anime episode and 1 week to release a manga chapter, it is pretty unfair to rob our creators' work off the spot they deserve.

@@ -1,0 +1,157 @@
+"---
+title: "Statistical Programming Data Project"
+author: "Mohamed Diallo"
+date: "2/5/2022"
+output: html_document
+---
+
+<style>
+body {
+text-align: justify;
+font-family: Times New Roman;
+font-size: 12;
+}
+</style>
+
+```{r setup, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Preface
+
+This project will take an attempt at diving into statistical programming using **R studio**. We will first start by importing the necessary libraries to manipulate the **Scooby** data-set which will be used. The libraries we will be importing are _tidyverse_ which will give us access to tools like _ggplot_ which is used to plot graphs. The library _readxl_ will also be used to import the Scooby Excel^**TM**^ file that we will be manipulating throughout the project.
+```{r Library Imports}
+library(tidyverse)
+library(readxl)
+library(ggthemes)
+```
+
+Created in **1969** by **Joe Ruby** and **Ken Spears**, **Scooby-Doo** is an animated series that tells the adventures of a group of 4 California students and their Dane companion. The show, of the supernatural genre, focuses on Shaggy, Velma, Fred, Daphne and Scooby-Doo who set out to solve mysterious events around the world with the use of their Mystery Machine. This hipster-ish looking van typically serves as their transportation tool but it also doubles as a mystery radar. After solving each mystery, which in most cases consists of finding and unmasking a culprit, Scooby-Doo gets rewarded with a Scooby-Snack as a token of his efforts despite being a very scaredy Dane at times. If you wish to learn more about Scooby-Doo, please click on the link ahead. (<https://www.imdb.com/title/tt0063950/plotsummary?ref_=tt_ov_pl>)
+
+## Introduction
+
+In this project, we will dive into the Scooby data-set and aim to find the most famous channel, judged by mean IMDb ratings. We will then further explore this specific network channel's data to try and finding correlations between audience engagement and culprit motive. Additionally, we will aim to find other interesting data such as the IMDb ratings' correlation to the Year released, and the series's run-time compared to the engagement of the audience. All of this will be done using tools from the tidyverse and readxl libraries.
+
+### Data-Import and Summary:
+
+Let's first start by importing the Scooby Excel file and then getting a glimpse of the data we will be manipulating. We will additionally get a glimpse of the networks to individually select them later.
+```{r Scooby}
+#Importing the scooby.xlsx file using read_excel(). Replace the directory with your own if you wish to use this code.
+#After importing, use the next functions to get information about the file imported.
+
+scooby <- read_excel("/Users/momeezus/Documents/School/LFC/Courses/MATH 250/xlxs files/scooby.xlsx")
+glimpse(scooby)
+summary(scooby$network)
+```
+
+
+### Filtering Data and Finding Mean Ratings per Channel:
+
+Using the filter function, we can decide which data from the original excel file to pull out and manipulate. In our case, we will start by filtering out the different Network Channels that aired Scooby-Doo and plot them using the mean rating for each channel. In order to do that, we will use the _**filter()**_ function. We will use the _**mean()**_ function to find the mean IMDb rating for each channel so that we can plot a graph from these values.
+```{r Network Channels by Mean Ratings}
+
+#Let's first split the Network Channels that aired Scooby-Doo into their own data-frames in case we need the individual ones.
+cbs_network <- filter(scooby, network == "CBS")
+abc_network <- filter(scooby, network == "ABC")
+cn_network <- filter(scooby, network == "Cartoon Network")
+wb_network <- filter(scooby, network == "The WB")
+whv_network <- filter(scooby, network == "Warner Home Video")
+cw_network <- filter(scooby, network == "The CW")
+
+#The Boomerang Network has null ratings which need to be dropped in order to get an integer value for the IMDb rating.
+boomerang_network <- filter(scooby, network == "Boomerang", !is.na(imdb)) 
+
+#We will then use the code below to find the mean rating for each channel.
+mean_cbs <- mean(cbs_network$imdb)
+mean_abc <- mean(abc_network$imdb)
+mean_cn <- mean(cn_network$imdb)
+mean_wb <- mean(wb_network$imdb)
+mean_whv <- mean(whv_network$imdb)
+mean_boomerang <- mean(boomerang_network$imdb)
+mean_cw <- mean(cw_network$imdb)
+```
+
+We will then take the mean ratings for each network channel along with their name and turn them into column vectors and create a new data frame that we can use to plot the Channel Network vs IMDb rating graph.
+```{r Network and Rating Column Vectors}
+network_channels <- c("CBS", "ABC", "Cartoon Network", "The WB", "Warner Home Video", "The CW", "Boomerang")
+
+per_channel_mean_ratings<- c(mean_cbs, mean_abc, mean_cn, mean_wb, mean_whv, mean_boomerang, mean_cw)
+
+network_rating_frame <- data.frame(network_channels, per_channel_mean_ratings)
+network_rating_frame
+```
+
+We can then proceed to plotting the mean rating per channel against the network channels with information about the means below the plot.
+```{r Mean Rating vs Network Channel Lollipop Graph}
+
+ggplot(network_rating_frame, aes(x = network_channels, y = per_channel_mean_ratings)) + geom_segment(aes(x = network_channels, y = 0, xend = network_channels, yend = per_channel_mean_ratings), colour = "#ff0099") + geom_point(size = 5, colour = "#ff7799") + theme_wsj() + labs(x = "Network Channels", y = "Mean IMDb Rating", fill = "Mean Rating", title = "Mean IMDb Rating per Network Channel Lollipop Graph:", size = 10) + theme(axis.text.x = element_text(angle = 90), text = element_text(size = 5))
+```
+
+```{r Mean Rating Per Channel, echo = FALSE}
+print("Mean rating per network channel:")
+print(paste("ABC: ", mean_abc))
+print(paste("Boomerang: ", mean_boomerang))
+print(paste("Cartoon Network: ", mean_cn))
+print(paste("CBS: ", mean_cbs))
+print(paste("The CW: ", mean_cw))
+print(paste("The WB: ", mean_wb))
+print(paste("Warner Home Video: ", mean_whv))
+```
+
+### Further Focus on Scooby-Doo Episodes Aired by Cartoon Network:
+
+Seeing as The cartoon network channel has the highest mean rating at ~8.05, we will focus on this network and explore more data regarding the episodes aired by Cartoon Network. Let's first find the highest rated episode aired by Cartoon Network and the median number of ratings for the network:
+```{r Highest CN IMDb rating and Mean CN IMDb rating}
+#Let's first find the highest rating received by Cartoon Network on IMDb and print it
+cn_imdb <- (cn_network$imdb)
+cn_highest <- max(cn_imdb)
+print(paste("The highest rating for the Cartoon Network Scooby-Doo episodes is: ", cn_highest))
+
+#Then find the median rating value for the episodes hosted by Cartoon Network
+median_cn <- median(cn_imdb)
+print(paste("The median rating for the Cartoon Network Scooby-Doo episodes is: ", median_cn))
+```
+
+Next, we could find the culprit genders and compare them to the engagement in the Cartoon Network Channel.We will be representing this data in a bar plot.
+```{r Gender Filtering and Motive vs Engagement Bar plot}
+#Let's make a new data frame where we filter out all episodes with many culprits for ease of plotting and to further practice data filtering
+cn_genders <- filter(cn_network, culprit_amount == 1, !is.na(engagement))
+view(cn_genders)
+view(cn_network)
+
+#Stylized bar plot of motive vs engagement with grouping by gender
+ggplot(cn_genders, aes(x= motive, y = engagement, fill = culprit_gender)) + geom_bar(alpha = 0.85, stat = "identity", position = "dodge") + theme_wsj() + theme(axis.text.x = element_text(angle = 90), text = element_text(size = 7)) + labs (x = "'Crime' Motive", y = "Engagement Value", fill = "Gender of Culprit", title = "Engagement vs Motive Bar Chart", subtitle = "Stacked by Gender of Culprit") + scale_fill_manual(values = c("#5F6FB3", "#FF879F"))
+```
+
+We can see that the entertainment section had the most culprits reaching almost 400. The graph also tells us that the audience engagement is also significantly lower in episodes with female culprits than those with male culprits when all motives are combined. Additionally, female culprits are only present in episodes where the motives are **competition**, **theft**, **preservation**, and **treasure** in descending order.
+One more interesting figure we could pull out from this data set is the IMDb ratings of the Cartoon Network Scooby-Doo episodes by the year of their release. 
+```{r Year Released vs IMDb Boxplot}
+#Stylized box-plot of Year Released vs IMDb rating grouped by series name
+ggplot(cn_genders, aes(x= year, y = imdb, fill = series_name)) + geom_boxplot() + theme_solarized_2() + theme(axis.text.y = element_text(angle = 90), text = element_text(size = 7)) + labs (x = "Year released", y = "IMDb Rating", fill = "Series Name", title = "IMDb Ratings vs Year Released Boxplot", subtitle = "Grouped by Series Name")
+```
+
+This box-plot graph of IMDb rating vs Year Released tells us that Scooby-Doo Mystery Incorporated has the highest variance in terms of IMDb ratings but the width of the box-plots tells us the number of episodes released for each series title. Therefore, we could deduce that although it has the highest rating episode out of all the episodes aired by Cartoon Network, it had the longest run-time giving it higher chances of producing high rated episodes.
+
+Finally, one more observation we could pull from this data is the run-time length compared to the audience engagement.
+We will first pull information (such as the shortest and longest run-times and lowest and highest egagement) from these two columns from the **cn_genders** data-frame then graph it into a **smooth-curve dotted plot**.
+```{r Min, Max and Smooth-Curve Plot for Run-time and Engamement}
+#Finding minimum and maximum for run-times and engamement
+cn_mintime <- min(cn_genders$run_time)
+cn_maxtime <- max(cn_genders$run_time)
+
+cn_min_eng <- min(cn_genders$engagement)
+cn_max_eng <- max(cn_genders$engagement)
+
+#Stylized Smooth Curve Plot for Run-time vs Engagement
+ggplot(cn_genders, aes(x= run_time, y = engagement)) + geom_smooth(method = lm, colour = "red") + geom_point(aes(colour = series_name), shape = 22) + theme_fivethirtyeight() + theme(axis.text.y = element_text(angle = 90), text = element_text(size = 7)) + labs (x = "Runtime", y = "Audience Engagment", colour = "Series Name", title = "Series Runtime vs Engagement", subtitle = "Grouped by Series Name")
+
+print(paste("Shortest Run-time: ", cn_mintime))
+print(paste("Longest Run-time: ", cn_maxtime))
+print(paste("Lowest Engagement: ", cn_min_eng))
+print(paste("Highest Engagement: ", cn_max_eng))
+```
+This graph already tells us a lot especially if we add in data like from the boxes above which shows us that although it has one of the shortest run-times, The Scooby-Doo Project has the highest audience engagement at 390, perhaps due to its special nature. The shortest run-time, which sits at 16 minutes is from the Scooby-Doo mystery Incorporated and has an audience engagement above the mean for an episode of such length. We can also see that the title Be Cool Scooby-Doo has in general the lowest engagement from the Scooby-Doo titles aired by Cartoon Network with its lowest engagement being 58 yet it also features the longest running episode at 24 minutes.
+
+## Conclusion
+
+The graphs plotted in this project aimed to find key observations such as the highest mean ratings per network channel to then give insight into more complex information. This information includes, but is not limited to, engagement vs motive, IMDb Ratings vs released, and series run-time vs audience engagement.
